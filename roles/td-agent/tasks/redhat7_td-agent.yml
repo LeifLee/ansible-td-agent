@@ -1,0 +1,59 @@
+---
+- name: Add rpm repository
+  copy: 
+    src: "{{ el7_rpm_version }}" 
+    dest: /tmp
+
+- name: yum install td-agent
+  yum: 
+    name: "/tmp/{{ el7_rpm_version }}"
+    state: installed
+
+- name: Create directory
+  file: 
+    path: "{{ item }}"
+    group: "{{ USER }}" 
+    owner: "{{ USER }}"
+    state: directory
+  loop:
+    - "/opt/td-agent/run"
+    - "/opt/td-agent/log"
+    - "/opt/td-agent/subsys"
+    - "/etc/td-agent/conf.d"
+    - "/opt/bin"
+
+- name: Copy the startup with consul  script
+  template:
+    src: td-agent_consul.j2
+    dest: /opt/bin/td-agent
+    mode: 0755
+  when: (use_consul is defined) and (use_consul == "yes")
+
+- name: Copy the registry consul  script
+  template:
+    src: registry.sh.j2
+    dest: /opt/td-agent/registry.sh
+    mode: 0755
+  when: (use_consul is defined) and (use_consul == "yes")
+
+- name: Copy the startup script
+  template:
+    src: td-agent.j2
+    dest: /opt/bin/td-agent
+    mode: 0755
+  when: (use_consul is defined) and (use_consul == "no")
+    
+#- name: Send config
+#  template:
+#    src: "{{ item.src }}"
+#    dest: "{{ item.dest }}" 
+#  loop:
+#    - { src: 'td-agent.conf', dest: '/etc/td-agent/td-agent.conf' }
+    
+- name: Change ownwer
+  shell: 
+    chown {{ USER }}. /opt && chown -R {{ USER }}. /etc/td-agent/ /opt/td-agent /opt/bin
+
+
+#  notify:
+#    - restart td-agent
